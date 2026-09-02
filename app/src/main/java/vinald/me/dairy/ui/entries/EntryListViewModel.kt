@@ -15,19 +15,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import vinald.me.dairy.data.DiaryRepository
-import vinald.me.dairy.data.Mood
-import vinald.me.dairy.data.entity.EntryWithPhotos
 import vinald.me.dairy.ui.appContainer
-import java.time.LocalDate
-
-data class EntryListItem(
-    val id: Long,
-    val title: String,
-    val snippet: String,
-    val date: LocalDate,
-    val mood: Mood,
-    val photoCount: Int,
-)
 
 data class EntryListUiState(
     val entries: List<EntryListItem> = emptyList(),
@@ -56,12 +44,3 @@ class EntryListViewModel(repository: DiaryRepository) : ViewModel() {
         }
     }
 }
-
-private fun EntryWithPhotos.toListItem() = EntryListItem(
-    id = entry.id,
-    title = entry.title,
-    snippet = entry.body.replace('\n', ' ').trim().take(140),
-    date = entry.entryDate,
-    mood = Mood.fromLevel(entry.moodLevel),
-    photoCount = photos.size,
-)
