@@ -14,6 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -22,10 +24,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import vinald.me.dairy.DiaryApplication
 import vinald.me.dairy.ui.calendar.CalendarScreen
 import vinald.me.dairy.ui.entries.EntryDetailScreen
 import vinald.me.dairy.ui.entries.EntryEditorScreen
 import vinald.me.dairy.ui.entries.EntryListScreen
+import vinald.me.dairy.ui.lock.LockScreen
+import vinald.me.dairy.ui.lock.PinSetupScreen
 import vinald.me.dairy.ui.settings.SettingsScreen
 import kotlin.reflect.KClass
 
@@ -44,6 +49,14 @@ private val topLevelDestinations = listOf(
 
 @Composable
 fun DairyApp() {
+    val container = (LocalContext.current.applicationContext as DiaryApplication).container
+    val locked by container.lockManager.isLocked.collectAsStateWithLifecycle()
+
+    if (locked) {
+        LockScreen()
+        return
+    }
+
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -95,7 +108,12 @@ fun DairyApp() {
                 )
             }
             composable<Route.Settings> {
-                SettingsScreen()
+                SettingsScreen(
+                    onOpenPinSetup = { navController.navigate(Route.PinSetup) },
+                )
+            }
+            composable<Route.PinSetup> {
+                PinSetupScreen(onDone = { navController.popBackStack() })
             }
             composable<Route.EntryDetail> { entry ->
                 val args = entry.toRoute<Route.EntryDetail>()

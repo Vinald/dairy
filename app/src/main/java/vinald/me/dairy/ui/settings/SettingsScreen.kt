@@ -1,24 +1,35 @@
 package vinald.me.dairy.ui.settings
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    onOpenPinSetup: () -> Unit,
+) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-            Text("Settings")
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            ListItem(
+                modifier = Modifier.clickable(onClick = onOpenPinSetup),
+                headlineContent = { Text("App lock") },
+                supportingContent = { Text("Set a PIN to lock the diary") },
+                leadingContent = { Icon(Icons.Default.Lock, contentDescription = null) },
+            )
         }
     }
 }
