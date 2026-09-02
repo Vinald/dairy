@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -29,11 +30,24 @@ fun SettingsScreen(
 ) {
     val hasPin by viewModel.hasPin.collectAsStateWithLifecycle()
     val biometricEnabled by viewModel.biometricEnabled.collectAsStateWithLifecycle()
+    val dynamicColor by viewModel.dynamicColor.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            ListItem(
+                headlineContent = { Text("Dynamic colours") },
+                supportingContent = { Text("Match the app palette to your wallpaper") },
+                leadingContent = { Icon(Icons.Default.Palette, contentDescription = null) },
+                trailingContent = {
+                    Switch(
+                        checked = dynamicColor,
+                        onCheckedChange = viewModel::setDynamicColor,
+                    )
+                },
+            )
+
             if (!hasPin) {
                 ListItem(
                     modifier = Modifier.clickable(onClick = onOpenPinSetup),

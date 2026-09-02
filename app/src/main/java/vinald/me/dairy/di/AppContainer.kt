@@ -1,6 +1,7 @@
 package vinald.me.dairy.di
 
 import android.content.Context
+import vinald.me.dairy.data.AppPreferences
 import vinald.me.dairy.data.DiaryDatabase
 import vinald.me.dairy.data.DiaryRepository
 import vinald.me.dairy.data.PhotoStorage
@@ -15,6 +16,8 @@ class AppContainer(context: Context) {
     private val photoStorage by lazy { PhotoStorage(context) }
 
     val diaryRepository by lazy { DiaryRepository(database.diaryDao(), photoStorage) }
+
+    val appPreferences by lazy { AppPreferences(context) }
 
     val pinManager by lazy { PinManager(context) }
 

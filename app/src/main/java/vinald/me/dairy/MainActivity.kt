@@ -6,9 +6,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.launchIn
@@ -21,7 +23,8 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
 
         // When app lock is on, keep diary content out of screenshots and the recents preview.
-        val pinManager = (application as DiaryApplication).container.pinManager
+        val container = (application as DiaryApplication).container
+        val pinManager = container.pinManager
         pinManager.hasPin
             .flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
             .onEach { hasPin ->
@@ -35,7 +38,9 @@ class MainActivity : FragmentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            DairyTheme {
+            val dynamicColor by container.appPreferences.dynamicColor
+                .collectAsStateWithLifecycle(initialValue = true)
+            DairyTheme(dynamicColor = dynamicColor) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     DairyApp()
                 }
