@@ -22,7 +22,7 @@ data class EntryListUiState(
     val loading: Boolean = true,
 )
 
-class EntryListViewModel(repository: DiaryRepository) : ViewModel() {
+class EntryListViewModel(private val repository: DiaryRepository) : ViewModel() {
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -31,7 +31,12 @@ class EntryListViewModel(repository: DiaryRepository) : ViewModel() {
     val uiState: StateFlow<EntryListUiState> = _query
         .debounce { if (it.isEmpty()) 0L else 200L }
         .flatMapLatest { q -> repository.search(q) }
-        .map { list -> EntryListUiState(entries = list.map { it.toListItem() }, loading = false) }
+        .map { list ->
+            EntryListUiState(
+                entries = list.map { it.toListItem(repository::photoFile) },
+                loading = false,
+            )
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EntryListUiState())
 
     fun onQueryChange(value: String) {

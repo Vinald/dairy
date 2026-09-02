@@ -26,7 +26,7 @@ data class CalendarUiState(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class CalendarViewModel(repository: DiaryRepository) : ViewModel() {
+class CalendarViewModel(private val repository: DiaryRepository) : ViewModel() {
 
     private val month = MutableStateFlow(YearMonth.now())
     private val selectedDate = MutableStateFlow(LocalDate.now())
@@ -49,7 +49,7 @@ class CalendarViewModel(repository: DiaryRepository) : ViewModel() {
             month = ym,
             selectedDate = date,
             daysWithEntries = days.toSet(),
-            selectedEntries = entries.map { it.toListItem() },
+            selectedEntries = entries.map { it.toListItem(repository::photoFile) },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CalendarUiState())
 
