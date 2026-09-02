@@ -1,10 +1,13 @@
 package vinald.me.dairy.ui.entries
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -150,7 +153,7 @@ fun EntryEditorScreen(
 private fun MoodPicker(selected: Mood, onSelect: (Mood) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Mood.entries.forEach { mood ->
             val isSelected = mood == selected
@@ -161,22 +164,26 @@ private fun MoodPicker(selected: Mood, onSelect: (Mood) -> Unit) {
                 } else {
                     MaterialTheme.colorScheme.surfaceVariant
                 },
+                border = if (isSelected) {
+                    BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                } else {
+                    null
+                },
                 modifier = Modifier
-                    .height(52.dp)
+                    .weight(1f)
+                    .aspectRatio(1f)
                     .selectable(
                         selected = isSelected,
                         role = Role.RadioButton,
                         onClick = { onSelect(mood) },
                     ),
             ) {
-                Column(
-                    modifier = Modifier
-                        .padding(horizontal = 10.dp)
-                        .fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(mood.emoji, textAlign = TextAlign.Center)
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        mood.emoji,
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
                 }
             }
         }
