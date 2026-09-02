@@ -41,6 +41,13 @@ ksp {
     arg("room.schemaLocation", "${projectDir}/schemas")
 }
 
+// Some libraries pull a newer kotlin-stdlib than this project's compiler can read.
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-stdlib:${libs.versions.kotlin.get()}")
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -55,6 +62,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.jetbrains.kotlinx.serialization.json)
+    implementation(libs.coil.compose)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

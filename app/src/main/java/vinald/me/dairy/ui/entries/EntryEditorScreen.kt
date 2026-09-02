@@ -1,5 +1,9 @@
 package vinald.me.dairy.ui.entries
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,10 +20,12 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,7 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import vinald.me.dairy.data.Mood
+import vinald.me.dairy.ui.PhotoStrip
 import vinald.me.dairy.ui.formatFull
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -60,6 +68,10 @@ fun EntryEditorScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showDatePicker by remember { mutableStateOf(false) }
+
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(),
+    ) { uris -> viewModel.onPhotosPicked(uris) }
 
     Scaffold(
         topBar = {
@@ -119,6 +131,37 @@ fun EntryEditorScreen(
                     .height(280.dp),
                 label = { Text("What happened today?") },
             )
+
+            Spacer(Modifier.height(16.dp))
+            val photoModels: List<Any> = state.existingPhotos.map {
+                viewModel.photoFile(it.fileName)
+            } + state.newPhotos
+            if (photoModels.isNotEmpty()) {
+                PhotoStrip(
+                    photos = photoModels,
+                    modifier = Modifier.fillMaxWidth(),
+                    onRemove = { model ->
+                        when (model) {
+                            is Uri -> viewModel.onRemoveNewPhoto(model)
+                            is File -> state.existingPhotos
+                                .firstOrNull { viewModel.photoFile(it.fileName) == model }
+                                ?.let(viewModel::onRemoveExistingPhoto)
+                        }
+                    },
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+            OutlinedButton(
+                onClick = {
+                    photoPicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                    )
+                },
+            ) {
+                Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
+                Text("  Add photos")
+            }
+
             Spacer(Modifier.height(24.dp))
         }
     }

@@ -1,5 +1,6 @@
 package vinald.me.dairy.ui.entries
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
@@ -13,7 +14,9 @@ import kotlinx.coroutines.launch
 import vinald.me.dairy.data.DiaryRepository
 import vinald.me.dairy.data.Mood
 import vinald.me.dairy.data.entity.DiaryEntry
+import vinald.me.dairy.data.entity.EntryPhoto
 import vinald.me.dairy.ui.appContainer
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 
@@ -23,8 +26,11 @@ data class EditorState(
     val body: String = "",
     val mood: Mood = Mood.OKAY,
     val date: LocalDate = LocalDate.now(),
+    val existingPhotos: List<EntryPhoto> = emptyList(),
+    val newPhotos: List<Uri> = emptyList(),
+    val saving: Boolean = false,
 ) {
-    val canSave: Boolean get() = title.isNotBlank() || body.isNotBlank()
+    val canSave: Boolean get() = !saving && (title.isNotBlank() || body.isNotBlank())
 }
 
 class EntryEditorViewModel(
@@ -36,6 +42,7 @@ class EntryEditorViewModel(
     val state: StateFlow<EditorState> = _state.asStateFlow()
 
     private var createdAt: Instant = Instant.now()
+    private val removedPhotos = mutableListOf<EntryPhoto>()
 
     init {
         if (entryId == null) {
@@ -53,11 +60,14 @@ class EntryEditorViewModel(
                         body = existing.entry.body,
                         mood = Mood.fromLevel(existing.entry.moodLevel),
                         date = existing.entry.entryDate,
+                        existingPhotos = existing.photos.sortedBy { it.position },
                     )
                 }
             }
         }
     }
+
+    fun photoFile(fileName: String): File = repository.photoFile(fileName)
 
     fun onTitleChange(value: String) = _state.update { it.copy(title = value) }
 
@@ -67,9 +77,23 @@ class EntryEditorViewModel(
 
     fun onDateChange(date: LocalDate) = _state.update { it.copy(date = date) }
 
+    fun onPhotosPicked(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        _state.update { it.copy(newPhotos = it.newPhotos + uris) }
+    }
+
+    fun onRemoveNewPhoto(uri: Uri) =
+        _state.update { it.copy(newPhotos = it.newPhotos - uri) }
+
+    fun onRemoveExistingPhoto(photo: EntryPhoto) {
+        removedPhotos += photo
+        _state.update { it.copy(existingPhotos = it.existingPhotos - photo) }
+    }
+
     fun save(onSaved: (Long) -> Unit) {
         val current = _state.value
         if (!current.canSave) return
+        _state.update { it.copy(saving = true) }
         viewModelScope.launch {
             val now = Instant.now()
             val id = repository.save(
@@ -83,6 +107,8 @@ class EntryEditorViewModel(
                     updatedAt = now,
                 ),
             )
+            removedPhotos.forEach { repository.removePhoto(it) }
+            repository.addPhotos(id, current.newPhotos)
             onSaved(id)
         }
     }

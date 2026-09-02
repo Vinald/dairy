@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import vinald.me.dairy.data.Mood
+import vinald.me.dairy.ui.PhotoStrip
 import vinald.me.dairy.ui.formatFull
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +81,15 @@ fun EntryDetailScreen(
                 Spacer(Modifier.height(8.dp))
             }
             Text(current.entry.body, style = MaterialTheme.typography.bodyLarge)
+
+            if (current.photos.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                PhotoStrip(
+                    photos = current.photos
+                        .sortedBy { it.position }
+                        .map { viewModel.photoFile(it.fileName) },
+                )
+            }
             Spacer(Modifier.height(24.dp))
         }
     }

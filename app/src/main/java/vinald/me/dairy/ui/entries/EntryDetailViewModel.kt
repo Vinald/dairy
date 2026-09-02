@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import vinald.me.dairy.data.DiaryRepository
 import vinald.me.dairy.data.entity.EntryWithPhotos
 import vinald.me.dairy.ui.appContainer
+import java.io.File
 
 class EntryDetailViewModel(
     private val repository: DiaryRepository,
@@ -19,6 +20,8 @@ class EntryDetailViewModel(
 
     val entry: StateFlow<EntryWithPhotos?> = repository.entry(entryId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun photoFile(fileName: String): File = repository.photoFile(fileName)
 
     fun delete(onDeleted: () -> Unit) {
         viewModelScope.launch {
