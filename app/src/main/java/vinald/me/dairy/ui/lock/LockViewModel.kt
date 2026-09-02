@@ -44,6 +44,7 @@ class LockViewModel(
         val entered = _pin.value
         viewModelScope.launch {
             if (pinManager.verify(entered)) {
+                _pin.value = ""
                 lockManager.unlock()
             } else {
                 _error.value = true

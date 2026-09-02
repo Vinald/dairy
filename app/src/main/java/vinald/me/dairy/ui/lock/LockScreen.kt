@@ -13,13 +13,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import vinald.me.dairy.security.BiometricAuth
 
 @Composable
 fun LockScreen(
@@ -27,6 +31,23 @@ fun LockScreen(
 ) {
     val pin by viewModel.pin.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val biometricEnabled by viewModel.biometricEnabled.collectAsStateWithLifecycle()
+
+    val activity = LocalContext.current as? FragmentActivity
+    val canUseBiometric = biometricEnabled && activity != null && BiometricAuth.isAvailable(activity)
+
+    fun showBiometricPrompt() {
+        if (activity == null) return
+        BiometricAuth.prompt(
+            activity = activity,
+            onSuccess = viewModel::onBiometricSuccess,
+            onFallback = {},
+        )
+    }
+
+    LaunchedEffect(canUseBiometric) {
+        if (canUseBiometric) showBiometricPrompt()
+    }
 
     Surface(Modifier.fillMaxSize()) {
         Column(
@@ -59,6 +80,7 @@ fun LockScreen(
             PinPad(
                 onDigit = viewModel::onDigit,
                 onBackspace = viewModel::onBackspace,
+                onBiometric = if (canUseBiometric) ({ showBiometricPrompt() }) else null,
             )
         }
     }
