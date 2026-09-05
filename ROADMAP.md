@@ -576,3 +576,179 @@ these than from the copy:
 | `FLAG_SECURE`, `flowWithLifecycle` | 12 |
 | Dynamic colour, dark theme, Material3 `ListItem`/`Switch` | 13 |
 | Adaptive icons, backup rules | 14 |
+
+---
+
+## Appendix A — exact file order, commit by commit
+
+**The rule:** create files in dependency order — the file that `import`s nothing first,
+then whatever uses it. The chain is always:
+
+```
+gradle deps → data/models → DAO/storage → Database → Repository → AppContainer
+   → ViewModel → helper composables → Screen → navigation wiring (DairyApp.kt)
+```
+
+A Gradle dependency change always comes first (nothing compiles otherwise).
+`DairyApp.kt` wiring always comes last (it references the screen you just built).
+A file marked *(edit)* already exists — you're changing it, not creating it.
+
+Run `git show <commit>` alongside each list to see the real diff.
+
+### Commit 1 — `initial compose project scaffold`
+
+Don't hand-write these. In Android Studio: **New Project → Empty Activity (Compose)**.
+The wizard generates, in effect:
+
+1. `gradle/libs.versions.toml`, `build.gradle.kts`, `app/build.gradle.kts`
+2. `app/src/main/AndroidManifest.xml`
+3. `app/src/main/java/.../MainActivity.kt`
+4. `app/src/main/java/.../ui/theme/{Color,Theme,Type}.kt`
+5. `res/` (icons, `strings.xml`, `themes.xml`, backup rules)
+
+Then edit `res/values/strings.xml` → set `app_name`.
+
+### Commit 2 — `add room database, entry entity, dao and type converters`
+
+1. `gradle/libs.versions.toml` *(edit)* — add `room` + `ksp` versions, the four
+   `androidx-room-*` libraries, and the `ksp` plugin
+2. `build.gradle.kts` *(edit)* — `alias(libs.plugins.ksp) apply false`
+3. `app/build.gradle.kts` *(edit)* — apply the `ksp` plugin; add the room deps
+   (`ksp(libs.androidx.room.compiler)`); add `ksp { arg("room.schemaLocation", "${projectDir}/schemas") }`
+4. `gradle.properties` *(edit)* — `android.disallowKotlinSourceSets=false`
+5. `data/Mood.kt`
+6. `data/entity/DiaryEntry.kt`
+7. `data/entity/EntryPhoto.kt` — references `DiaryEntry` in its `@ForeignKey`
+8. `data/entity/EntryWithPhotos.kt` — `@Embedded` + `@Relation` of the two above
+9. `data/Converters.kt`
+10. `data/DiaryDao.kt` — references the entities + `EntryWithPhotos`
+11. `data/DiaryDatabase.kt` — references entities, `Converters`, `DiaryDao`
+12. **Build once** → Room generates `app/schemas/.../1.json` (commit it)
+13. `app/src/androidTest/java/.../data/DiaryDaoTest.kt` — run it, make it green
+
+### Commit 3 — `add repository and app container dependency injection`
+
+1. `data/DiaryRepository.kt` — wraps `DiaryDao` (no `PhotoStorage` yet; add
+   `entries/entry/save/delete/search` only)
+2. `di/AppContainer.kt` — builds `database` and `diaryRepository` with `by lazy`
+3. `DiaryApplication.kt` — `lateinit var container`, set in `onCreate()`
+4. `AndroidManifest.xml` *(edit)* — `android:name=".DiaryApplication"`
+
+### Commit 4 — `add navigation host and screen routes`
+
+1. `gradle/libs.versions.toml` *(edit)* — `navigationCompose`, `kotlinxSerialization`
+   versions + libraries + the `kotlin-serialization` plugin
+2. `build.gradle.kts` *(edit)* — `alias(libs.plugins.kotlin.serialization) apply false`
+3. `app/build.gradle.kts` *(edit)* — apply `kotlin.serialization`; add
+   `navigation-compose` + `kotlinx-serialization-json`
+4. `ui/Route.kt` — the sealed interface, depends on nothing
+5. Stub screens (each just `@Composable fun XScreen(...) { Text("X") }`):
+   `ui/entries/EntryListScreen.kt`, `ui/entries/EntryDetailScreen.kt`,
+   `ui/entries/EntryEditorScreen.kt`, `ui/calendar/CalendarScreen.kt`,
+   `ui/settings/SettingsScreen.kt`
+6. `ui/DairyApp.kt` — `NavHost`, one `composable<Route.X>` per route, bottom `NavigationBar`
+7. `MainActivity.kt` *(edit)* — call `DairyApp()` inside `setContent { DairyTheme { ... } }`
+
+### Commit 5 — `add entry list screen with search`
+
+1. `ui/ViewModelExt.kt` — `CreationExtras.appContainer` extension
+2. `ui/DateFormat.kt` — `LocalDate.formatMedium()/formatFull()`
+3. `ui/entries/EntryRow.kt` — `EntryListItem` data class, `EntryWithPhotos.toListItem(...)`,
+   `EntryRow` composable *(the original put this in the ViewModel file and split it out in
+   commit 9 — making it its own file now is cleaner)*
+4. `ui/entries/EntryListViewModel.kt` — `_query` → `debounce` → `flatMapLatest` →
+   `repository.search` → `EntryListUiState`; `Factory` via `viewModelFactory`
+5. `ui/entries/EntryListScreen.kt` *(edit the stub)* — search field + `LazyColumn` + empty states
+6. `ui/DairyApp.kt` *(edit)* — pass real `onCreateEntry` / `onOpenEntry` lambdas
+
+### Commit 6 — `add entry detail screen`
+
+1. `ui/entries/EntryDetailViewModel.kt` — `factory(entryId)`, `entry: StateFlow<..?>`, `delete`
+2. `ui/entries/EntryDetailScreen.kt` *(edit the stub)* — top bar actions + `AlertDialog`
+3. `ui/DairyApp.kt` *(edit)* — pass `onEdit` / `onBack`
+
+### Commit 7 — `add create and edit entry screen with mood picker` (+ layout fix)
+
+1. `ui/entries/EntryEditorViewModel.kt` — `EditorState` (+ `canSave`), `init` load,
+   all `onXChange`, `save(onSaved)`
+2. `ui/entries/EntryEditorScreen.kt` *(edit the stub)* — date chip, `MoodPicker`,
+   title/body fields, `DatePickerDialog`
+3. `ui/DairyApp.kt` *(edit)* — wire `Route.EntryEditor()` (new) and `Route.EntryEditor(id)` (edit)
+
+### Commit 8 — `add photo attachments to entries`
+
+1. `gradle/libs.versions.toml` + `app/build.gradle.kts` *(edit)* — add `coil-compose`
+2. `data/PhotoStorage.kt` — `import(uri)`, `fileFor(name)`, `delete(name)`
+3. `di/AppContainer.kt` *(edit)* — build `PhotoStorage`, pass it into `DiaryRepository`
+4. `data/DiaryRepository.kt` *(edit)* — `photoFile`, `addPhotos`, `removePhoto`,
+   photo-aware `delete`
+5. `ui/PhotoThumbnails.kt` — `PhotoStrip(photos: List<Any>, onRemove: ((Any) -> Unit)?)`
+6. `ui/entries/EntryEditorViewModel.kt` *(edit)* — `existingPhotos` / `newPhotos` /
+   `removedPhotos`, apply on save
+7. `ui/entries/EntryEditorScreen.kt` *(edit)* — `rememberLauncherForActivityResult` picker + strip
+8. `ui/entries/EntryDetailViewModel.kt` *(edit)* — `photoFile`
+9. `ui/entries/EntryDetailScreen.kt` *(edit)* — read-only `PhotoStrip`
+
+*(The photo DAO methods — `insertPhotos`, `deletePhoto`, `photosFor` — were already in
+`DiaryDao.kt` from commit 2. If you left them out, add them here first.)*
+
+### Commit 9 — `add calendar month view`
+
+1. `ui/entries/EntryRow.kt` — only if you didn't already split it out in commit 5
+2. `data/DiaryDao.kt` + `data/DiaryRepository.kt` *(edit)* — `observeEntryDates`,
+   `observeEntriesBetween` (already present from commit 2 if you copied the whole DAO)
+3. `ui/calendar/CalendarViewModel.kt` — `month` + `selectedDate` flows, `combine(...)`,
+   `showPreviousMonth` / `showNextMonth` / `selectDate`
+4. `ui/calendar/CalendarScreen.kt` *(edit the stub)* — header, weekday row, `MonthGrid`, `DayCell`
+5. `ui/DairyApp.kt` *(edit)* — pass `onOpenEntry`
+
+### Commit 10 — `add pin setup and lock screen`
+
+1. `gradle/libs.versions.toml` + `app/build.gradle.kts` *(edit)* — `datastore-preferences`,
+   `lifecycle-process`
+2. `security/PinHasher.kt` — pure Kotlin, no Android imports
+3. `app/src/test/java/.../security/PinHasherTest.kt` — plain JVM test, run it now
+4. `security/PinManager.kt` — DataStore; uses `PinHasher`
+5. `security/LockManager.kt` — uses `PinManager`; `DefaultLifecycleObserver`
+6. `di/AppContainer.kt` *(edit)* — add `pinManager`, `lockManager`
+7. `DiaryApplication.kt` *(edit)* — `container.lockManager.start()`
+8. `ui/lock/PinPad.kt` — `PIN_LENGTH`, `PinDots`, `PinPad` (no deps)
+9. `ui/lock/LockViewModel.kt`
+10. `ui/lock/LockScreen.kt`
+11. `ui/lock/PinSetupViewModel.kt` — `PinSetupStage` state machine
+12. `ui/lock/PinSetupScreen.kt`
+13. `ui/DairyApp.kt` *(edit)* — `if (locked) { LockScreen(); return }`; add the `PinSetup` route
+
+### Commit 11 — `add biometric unlock`
+
+1. `gradle/libs.versions.toml` + `app/build.gradle.kts` *(edit)* — `biometric-ktx`
+2. `AndroidManifest.xml` *(edit)* — `<uses-permission android:name="android.permission.USE_BIOMETRIC" />`
+3. `MainActivity.kt` *(edit)* — change superclass to `FragmentActivity`
+4. `security/BiometricAuth.kt` — `isAvailable`, `prompt(activity, onSuccess, onFallback)`
+5. `security/PinManager.kt` *(edit)* — `biometricEnabled` flow + `setBiometricEnabled`
+6. `ui/lock/PinPad.kt` *(edit)* — optional `onBiometric` param → fingerprint key
+7. `ui/lock/LockViewModel.kt` *(edit)* — expose `biometricEnabled`, `onBiometricSuccess`
+8. `ui/lock/LockScreen.kt` *(edit)* — `LaunchedEffect` auto-prompt + fallback to PIN
+
+### Commit 12 — `hide diary content from screenshots and recents when locked`
+
+1. `MainActivity.kt` *(edit)* — in `onCreate`, collect `pinManager.hasPin` with
+   `flowWithLifecycle(...)` and toggle `WindowManager.LayoutParams.FLAG_SECURE`
+
+### Commit 13 — `add settings screen with theme and lock options`
+
+1. `data/AppPreferences.kt` — second DataStore (`"app_preferences"`), `dynamicColor` flow + setter
+2. `di/AppContainer.kt` *(edit)* — add `appPreferences`
+3. `MainActivity.kt` *(edit)* — collect `dynamicColor`, pass into `DairyTheme(dynamicColor = ...)`
+4. `ui/theme/Theme.kt` *(edit, if needed)* — honour the `dynamicColor` param
+5. `ui/settings/SettingsViewModel.kt` — `hasPin`, `biometricEnabled`, `dynamicColor` + setters
+6. `ui/settings/SettingsScreen.kt` *(edit the stub)* — `ListItem` rows + `Switch`es,
+   conditional on `hasPin`
+7. `ui/DairyApp.kt` *(edit)* — wire `onOpenPinSetup → navigate(Route.PinSetup)`
+
+### Commits 14–15 — polish
+
+1. `res/values/strings.xml` *(edit)* — final app name
+2. `res/mipmap-*` — replace launcher icon (Image Asset Studio)
+3. `AndroidManifest.xml` *(edit)* — `allowBackup="false"`, `windowSoftInputMode="adjustResize"`
+4. `ui/entries/EntryRow.kt` *(edit)* — `trailingContent` thumbnail of the first photo
